@@ -20,19 +20,20 @@ export default function Chatbot() {
   const sendBot = (text: string) =>
     setMessages((prev) => [...prev, { from: "bot", text }]);
 
-  const sendEmail = async () => {
+  // ✅ FIXED: Pass name & email directly to avoid async state issue
+  const sendEmail = async (name: string, email: string) => {
     try {
       await emailjs.send(
-        "service_1df6hl5",     // ✅ Service ID
-        "template_5ggclth",    // ✅ Template ID
+        "service_1df6hl5",  // Service ID
+        "template_5ggclth", // Template ID
         {
-          name: user.name,     // ✅ Must match {{name}} in template
-          email: user.email,   // ✅ Used only in email body, not To Email
+          name: name,        // Matches {{name}} in template
+          email: email,      // Matches {{email}} in template
         },
-        "QFS6G3OtDIiHj86BA"    // ✅ Public Key
+        "QFS6G3OtDIiHj86BA"  // Public Key
       );
 
-      sendBot(`📩 Email sent successfully to ${user.email}!`);
+      sendBot(`📩 Email sent successfully to ${email}!`);
       sendBot("Now tell me — what are you craving today? 😋");
     } catch (error) {
       console.error("EMAILJS ERROR:", error);
@@ -63,10 +64,13 @@ export default function Chatbot() {
 
       setUser((u) => ({ ...u, email: msg }));
       setStage("chat");
-      await sendEmail();
+
+      // ✅ FIXED: Use msg directly (correct email), not stale state
+      await sendEmail(user.name, msg);
       return;
     }
 
+    // AI Chat Stage
     try {
       const res = await ai.models.generateContent({
         model: "gemini-2.5-flash",
@@ -90,11 +94,14 @@ export default function Chatbot() {
 
           <div className="flex-1 overflow-y-auto space-y-3 mt-3 pr-1">
             {messages.map((m, i) => (
-              <div key={i} className={`px-3 py-2 rounded-lg text-sm max-w-[85%] break-words ${
-                m.from === "user"
-                  ? "bg-primary text-primary-foreground ml-auto"
-                  : "bg-secondary text-secondary-foreground"
-              }`}>
+              <div
+                key={i}
+                className={`px-3 py-2 rounded-lg text-sm max-w-[85%] break-words ${
+                  m.from === "user"
+                    ? "bg-primary text-primary-foreground ml-auto"
+                    : "bg-secondary text-secondary-foreground"
+                }`}
+              >
                 {m.text}
               </div>
             ))}
@@ -106,9 +113,11 @@ export default function Chatbot() {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSend()}
               placeholder={
-                stage === "name" ? "Your Name..." :
-                stage === "email" ? "Your Email..." :
-                "Ask anything 🍕"
+                stage === "name"
+                  ? "Your Name..."
+                  : stage === "email"
+                  ? "Your Email..."
+                  : "Ask anything 🍕"
               }
               className="flex-1 px-3 py-2 border border-input rounded-lg bg-muted text-foreground"
             />
